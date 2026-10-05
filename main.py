@@ -54,33 +54,47 @@ async def archive(ctx):
                 )
 
         with open(filename, "w", encoding="utf-8") as file:
-            json.dump(msgs, file, ensure_ascii=False, indent=2)
+            json.dump(
+                msgs,
+                file,
+                ensure_ascii=False,
+                indent=2
+            )
 
         with open(filename, "rb") as file:
-            files = {
-                "file": file
-            }
-
             response = requests.post(
-                "https://file.io",
-                files=files,
+                "https://tempfile.org/api/upload/local",
+                files={
+                    "files": (
+                        filename,
+                        file,
+                        "application/json"
+                    )
+                },
                 data={
-                    "maxDownloads": 1,
-                    "autoDelete": "true"
-                }
+                    "expiryHours": 24
+                },
+                timeout=120
             )
 
         response.raise_for_status()
 
         data = response.json()
-        link = data["link"]
+
+        if not data.get("success"):
+            raise RuntimeError(
+                f"Ошибка tempfile.org: {data}"
+            )
+
+        link = data["files"][0]["url"]
 
         await progress_message.edit(
             content=f"Всё записала!\n{link}"
         )
 
     except Exception as error:
-        print(error)
+        print(f"Ошибка: {error}")
+
         await progress_message.edit(
             content="Просчиталась! Но где..."
         )
